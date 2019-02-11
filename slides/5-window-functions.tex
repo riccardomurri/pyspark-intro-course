@@ -1,0 +1,274 @@
+\PassOptionsToPackage{table,usenames,dvipsnames,x11names}{xcolor}
+\documentclass[english,serif,mathserif]{beamer}
+\usetheme[informal]{gc3}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{babel}
+
+\usepackage{gc3}
+
+\usepackage{colortbl}
+\makeatletter
+\rowcolors{1}{uzh@blue!10}{white}
+\makeatother
+
+\usepackage{dcolumn}
+\newcolumntype{d}[1]{D{.}{\cdot}{#1} }
+
+
+\begin{document}
+
+\title[Spark]{An Insufficient Introduction to Spark}
+\subtitle{Part 3: DataFrames}
+\author{Riccardo Murri \texttt{<riccardo.murri@gmail.com>}}
+\date{2019-02-11}
+
+%% Makes the title slide
+\maketitle
+
+\part{User-defined functions}
+
+\begin{frame}[fragile]
+  \frametitle{Column expressions}
+
+  Like in SQL, wherever a column name is wanted, a column expression may be used
+  instead.
+
+  \+
+  A column expression is made of:
+  \begin{itemize}
+  \item column references, e.g., \texttt{df['colname']}
+  \item constants, logical/relation operators \texttt{==}, \texttt{<=}, etc. and
+    algebraic operators \texttt{+}, \texttt{-}, \texttt{*}, \texttt{/} (for
+    numeric-valued columns only)
+  \item One of the many column functions provided in the
+    \href{http://spark.apache.org/docs/1.5.1/api/python/pyspark.sql.html#module-pyspark.sql.functions}{pyspark.sql.functions}
+    module
+  \end{itemize}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \frametitle{Examples of column functions (1)}
+
+  A sample from the
+  \href{http://spark.apache.org/docs/1.5.1/api/python/pyspark.sql.html#module-pyspark.sql.functions}{pyspark.sql.functions}
+  module:
+
+  \+
+  \begin{describe}{cos(), sin(), log(), $\ldots$}
+    Numerical functions.
+  \end{describe}
+
+  \+
+  \begin{describe}{concat(\emph{s1, s2, $\ldots$}), locate(\emph{str, substr}), \\
+      lower(\emph{col}), lpad(\emph{col}, \emph{len}, \emph{pad}), $\ldots$}
+    String functions.
+  \end{describe}
+
+  \+
+  \begin{describe}{year(), month(), day(), hour(). minute(), second(), \\
+      dayofmonth(), dayofyear(), weekofyear()}
+    Extract the corresponding part from a date or timestamp value.
+  \end{describe}
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \frametitle{Examples of column functions (2)}
+
+  A sample from the
+  \href{http://spark.apache.org/docs/1.5.1/api/python/pyspark.sql.html#module-pyspark.sql.functions}{pyspark.sql.functions}
+  module:
+
+  \+
+  \begin{describe}{asc(), desc()}
+    Sort value in the column in ascending/descending order.
+  \end{describe}
+
+  \+
+  \begin{describe}{column(\emph{name})}
+    Values from the named column.
+  \end{describe}
+
+  \+
+  \begin{describe}{explode(\emph{name})}
+    When the named column is a composite-type one (e.g. values are lists),
+    return one value at a time.
+  \end{describe}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \frametitle{User-defined functions}
+
+  It is possible to make user code into a column function by passing it to
+  the \texttt{udf} function:
+  \begin{python}
+def classify(x):
+  return ['a', 'b', 'c', 'd'][x % 4]
+
+# make it into a column function
+from pysparl.sql.functions import udf
+classify_col = udf(classify)
+
+df2 = df.withColumn(df, classify_col.alias('class'))
+  \end{python}
+
+  \+
+  Note that the return type of a UDF defaults to string!
+  An optional second argument to \texttt{udf()} states the return type.
+\end{frame}
+
+
+\begin{frame}
+  \begin{exercise*}[5.A]
+    Load the ``Word Bank'' CSV data into a Spark DataFrame.  Notice
+    that column \texttt{birth\_order} gives the information as an
+    English word (e.g., ``Fourth'').  Write a function to convert the
+    contents of that column to an integer (e.g., map ``First'' to 1,
+    ``Fourth'' to 4, etc.)
+  \end{exercise*}
+\end{frame}
+
+
+\part{Window Functions}
+
+\begin{frame}
+  \frametitle{Window functions}
+
+  \begin{quotation}
+    ``Built-in functions or UDFs, \emph{[$\ldots$]} take values from a single
+    row as input, and they generate a single return value for every input row.
+    Aggregate functions, \emph{[$\ldots$]} operate on a group of rows and
+    calculate a single return value for every group. \emph{[$\ldots$]}
+
+    \+ At its core, \textbf{a window function calculates a return value for
+      every input row of a table based on a group of rows}, called the
+    \emph{Frame}.''
+  \end{quotation}
+
+  \+
+  \begin{references}
+    \url{https://databricks.com/blog/2015/07/15/introducing-window-functions-in-spark-sql.html}
+  \end{references}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Examples of Window functions}
+
+  \begin{describe}{rank(), percentRank()}
+    Rank (resp.~percentile) of the row within the current frame.
+  \end{describe}
+
+  \+
+  \begin{describe}{lead(\emph{col}, \emph{offset}, \emph{default}),
+      lag(\emph{col}, \emph{offset}, \emph{default})}
+    Return the row that comes {\ttfamily\em offset} before (\texttt{lead}) or after
+    (\texttt{lag}) the current row.  If the frame does not extend that far,
+    return the {\ttfamily\em default} value.
+  \end{describe}
+
+  \+
+  Any aggregate function can be used as a window function.
+
+  \+
+  \begin{references}
+    \url{https://databricks.com/blog/2015/07/15/introducing-window-functions-in-spark-sql.html}
+  \end{references}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \frametitle{Using window functions}
+
+  In order to use a window function one must ``instanciate'' it with a
+  \emph{window specification} in the \texttt{.over()} method:
+  \begin{python}
+wf = rank().over(wspec)
+  \end{python}
+
+  \+
+  A window specification defines which rows are included in the frame associated
+  with a given input row.
+
+  \+
+  A window specification includes three parts:
+  \begin{enumerate}
+  \item partitioning specification
+  \item ordering specification
+  \item frame specification
+  \end{enumerate}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \frametitle{Partitioning specification}
+  Partitioning Specification: controls which rows will be in the same partition
+  with the given row.
+
+  \+
+  This is done by calling the `\texttt{Window.partitionBy()}' method with an
+  expression whose values will be used in the ordering and framing steps.
+
+  \+
+  Example:
+  \begin{python}
+    from pyspark.sql.window import Window
+    from pyspark.sql.functions import day
+
+    wspec = Window.partitionBy(day('date'))
+  \end{python}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \frametitle{Ordering specification}
+  Ordering Specification: controls the way that rows in a partition are ordered,
+  determining the position of the given row in its partition.
+
+  \+
+  This is done by calling the `\texttt{Window.orderBy()}' method with either
+  \texttt{pyspark.sql.functions.asc()} or `\texttt{desc()}' as argument.
+
+  \+
+  Example:
+  \begin{python}
+    from pyspark.sql.window import Window
+    from pyspark.sql.functions import desc
+
+    wspec = wspec.orderBy(desc('count'))
+  \end{python}
+
+  \+
+  Note that the ordering expression and the partitioning expression can (and
+  often will!) be different.
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \frametitle{Frame specification}
+  Frame Specification: states which rows will be included in the frame for the
+  current input row, based on their relative position to the current row.
+
+  \+
+  \begin{describe}{rowsBetween(\emph{before}, \emph{after})}
+    Include the \emph{before} rows preceding the current one and the \emph{after}
+    rows following it in the frame.
+  \end{describe}
+
+  \+
+  \begin{describe}{rangeBetween(\emph{start}, \emph{end})}
+    Include in the frame all rows on which the ordering expression takes a
+    value in between \emph{start} and \emph{end}.
+  \end{describe}
+\end{frame}
+
+
+\end{document}
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:

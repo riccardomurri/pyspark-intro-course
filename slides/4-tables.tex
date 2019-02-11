@@ -1,0 +1,379 @@
+\PassOptionsToPackage{table,usenames,dvipsnames,x11names}{xcolor}
+\documentclass[english,serif,mathserif]{beamer}
+\usetheme[informal]{gc3}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{babel}
+
+\usepackage{gc3}
+
+\usepackage{colortbl}
+\makeatletter
+\rowcolors{1}{uzh@blue!10}{white}
+\makeatother
+
+\usepackage{dcolumn}
+\newcolumntype{d}[1]{D{.}{\cdot}{#1} }
+
+
+\begin{document}
+
+\title[Spark]{An Insufficient Introduction to Spark}
+\subtitle{Part 4: Relational Algebra and Table Processing}
+\author{Riccardo Murri \texttt{<riccardo.murri@gmail.com>}}
+\date{2019-02-11}
+
+%% Makes the title slide
+\maketitle
+
+\part{Relational Algebra}
+
+\begin{frame}
+  \frametitle{\emph{Relational} DBs}
+
+  All major general purpose DBMS's are based on the so-called relational
+  data model.
+
+  \+ This means that all data is stored in a number of tables (with named
+  columns), such as:
+
+  \begin{center}
+    \small
+    \begin{tabular}{lll}
+      \textbf{usr}
+             & \textbf{size}
+                           & \textbf{path}                  \\
+      \hline
+      usr264 &          17 & /scratch/iftp/usr264/cp1.log   \\
+      usr116 & 19362662400 & /scratch/id/usr116/vkeller.tar \\
+      usr116 &     3379200 & /scratch/id/usr116/test.tar    \\
+      usr264 &          16 & /scratch/iftp/usr264/cp2.log   \\
+      usr345 &      877366 & /scratch/aim/usr345/bwa/bwa    \\
+    \end{tabular}
+  \end{center}
+
+  For historical and mathematical reasons such tables are referred to as
+  \emph{relations.}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \frametitle{Relational data  model}
+
+  \normalsize
+  A \textbf{relational database} is a set of relations.
+
+  \+
+  A \textbf{relation} is an (ordered) set of tuples.
+
+  \+
+  A relation can be represented by listing all groups of related elements
+  --- the result is a ``table''.
+
+  \+
+  \small
+  \begin{center}
+    \begin{tabular}{lll}
+      \textbf{usr}
+             & \textbf{size}
+                           & \textbf{path}                  \\
+      \hline
+      usr264 &          17 & /scratch/iftp/usr264/cp1.log   \\
+      usr116 & 19362662400 & /scratch/id/usr116/vkeller.tar \\
+      usr116 &     3379200 & /scratch/id/usr116/test.tar    \\
+      usr264 &          16 & /scratch/iftp/usr264/cp2.log   \\
+      usr345 &      877366 & /scratch/aim/usr345/bwa/bwa    \\
+    \end{tabular}
+  \end{center}
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{What is \emph{relational} algebra?}
+
+  Relational algebra, defined in its basic form by E.~F.~Codd in 1970, has:
+  \begin{itemize}
+  \item relations as atomic operands, and
+  \item various operations on relations as operators (which will be detailed shortly).
+  \end{itemize}
+
+  \+
+  Relational algebra is the basis of SQL and of Spark DataFrames.
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{Relational Algebra}
+  \texttt{DataFrame} are basically tables: all the relational algebra operators
+  that we already know can be applied.
+
+  \+
+  \begin{description}
+  \item[df.select(\ldots)] return new \texttt{DataFrame} with only the
+    specified set of columns (RA's ``projection'' operator).
+  \item[df.distinct()] return new \texttt{DataFrame} omitting duplicate rows.
+  \item[df.where(\ldots)] return new \texttt{DataFrame} containing only rows
+    that satisfy a condition (RA's ``selection'' operator).
+  \item[df.orderBy(\ldots)] return new \texttt{DataFrame} sorted by the specified column(s).
+  \end{description}
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{Relational Algebra (2)}
+  \texttt{DataFrame} are basically tables: all the relational algebra operators
+  that we already know can be applied.
+
+  \+
+  \begin{description}
+  \item[df1.insersect(df2)] return new \texttt{DataFrame} containing only rows
+    that are in \emph{both} \texttt{df1} and \texttt{df2}
+  \item[df.subtract(df2)] Return a new \texttt{DataFrame} containing only rows
+    that are in \texttt{df1} \emph{but not} \texttt{df2}
+  \item[df.unionAll(df2)] Return a new \texttt{DataFrame} containing union of rows.
+  \end{description}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \frametitle{Relational Algebra (3)}
+  \smaller
+
+  \texttt{DataFrame} are basically tables: all the relational algebra operators
+  that we already know can be applied.
+
+  \+
+  \begin{describe}{df1.join(df2, on=$\ldots$, how=$\ldots$)}
+    Perform a join of two \texttt{DataFrame}s, return result as a new \texttt{DataFrame}.
+
+    \+
+    The \texttt{how=} parameter is a string naming the type of JOIN operation:
+    \texttt{'inner'}, \texttt{'outer'}, \texttt{'left\_outer'},
+    \texttt{'right\_outer'}.
+
+    \+
+    The \texttt{on=} parameter is any of the following:
+    \begin{itemize}
+    \item \texttt{None} (default): perform a natural join
+    \item column name or list of column names: perform an equi-join on the given
+      columns
+    \item column expression (or list thereof): perform a $\theta$-join
+    \end{itemize}
+  \end{describe}
+\end{frame}
+
+
+\part{Joins}
+\begin{frame}
+  \frametitle{Joins}
+
+  From \href{https://en.wikipedia.org/wiki/Join_(SQL)}{Wikipedia}:
+
+  \+
+  \begin{quote}
+    The \texttt{JOIN} operation combines columns from one or more tables in a
+    relational database {\em [$\ldots$]} by using values common to each.
+
+    \+ There are 4 common types of JOIN: \texttt{INNER},
+    \texttt{LEFT~OUTER}, \texttt{RIGHT~OUTER}, and \texttt{FULL~OUTER}.
+  \end{quote}
+
+   \+
+   \begin{references}
+     For more details, see:
+     \url{https://en.wikipedia.org/wiki/Join_(SQL)}
+   \end{references}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \frametitle{INNER JOIN}
+
+  An \texttt{INNER JOIN} returns the set of tuples from the cross product of two
+  tables that satisfy a certain predicate:
+
+  \begin{center}
+    \begin{tabular}{cc}
+      \rowcolor{white}\multicolumn{2}{c}{\em Table: Directors}
+      \\
+      \hline
+      \textbf{name} & \textbf{prizeId}
+      \\
+      \hline
+      F.~F.~Coppola & 11
+      \\
+      T.~Kitano & 27
+    \end{tabular}
+    {\color{gray}$\pmb\Join$}
+    \begin{tabular}{cc}
+      \multicolumn{2}{c}{\em Table: Prizes}
+      \\
+      \hline
+      \textbf{id} & \textbf{prize}
+      \\
+      \hline
+      27 & Leone d'Oro
+      \\
+      11 & Oscar
+    \end{tabular}
+    \\
+    {\color{gray}$\pmb\downarrow$}
+    \\
+    \begin{tabular}{cc}
+      \multicolumn{2}{c}{\em Table: Result}
+      \\
+      \hline
+      \textbf{name} & \textbf{prize}
+      \\
+      \hline
+      F.~F.~Coppola & Oscar
+      \\
+      T.~Kitano & Leone d'Oro
+      \\
+    \end{tabular}
+
+    \+
+    \begin{minipage}{32ex}
+      \begin{python}
+directors.join(prizes,
+  on=(directors.prizeId == prizes.id),
+  how='inner')
+    \end{python}
+  \end{minipage}
+  \end{center}
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{Equi-joins}
+
+  A join operation is called an \emph{equi-join} if the selection predicate is a
+  conjunction of equality comparisons.
+
+  \+ In the case of an equi-join, the \texttt{on=\ldots} argument can be omitted.
+\end{frame}
+
+
+\def\ojoin{\setbox0=\hbox{$\Join$}%
+  \rule[0.1ex]{.27em}{.4pt}\llap{\rule[1.3ex]{.27em}{.4pt}}}
+\def\leftouterjoin{\mathbin{\ojoin\mkern-5.8mu\Join}}
+\def\rightouterjoin{\mathbin{\Join\mkern-5.8mu\ojoin}}
+\def\fullouterjoin{\mathbin{\ojoin\mkern-5.8mu\Join\mkern-5.8mu\ojoin}}
+
+\begin{frame}
+  \frametitle{OUTER JOIN}
+
+  In a \texttt{OUTER JOIN}, the result table retains each row, even if no other
+  matching row exists.
+
+  \+
+  \begin{itemize}
+  \item In a \texttt{LEFT OUTER JOIN}, every row from the \textbf{left} table is
+    retained: the result is padded with \texttt{NULL} if no matching row from
+    the \emph{right} table is found.
+  \item A \texttt{RIGHT OUTER JOIN} does the same with \emph{left} and
+    \textbf{right} reversed.
+  \item In a \texttt{FULL OUTER JOIN}, rows from both sides are retained.
+  \end{itemize}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \frametitle{LEFT OUTER JOIN}
+
+  \begin{center}
+    \begin{tabular}{cc}
+      \rowcolor{white}\multicolumn{2}{c}{\em Table: Directors}
+      \\
+      \hline
+      \textbf{name} & \textbf{prizeId}
+      \\
+      \hline
+      F.~F.~Coppola & 11
+      \\
+      T.~Kitano & 27
+      \\
+      Ed Wood & \texttt{NULL}
+    \end{tabular}
+    {\color{gray}$\pmb\leftouterjoin$}
+    \begin{tabular}{cc}
+      \multicolumn{2}{c}{\em Table: Prizes}
+      \\
+      \hline
+      \textbf{id} & \textbf{prize}
+      \\
+      \hline
+      27 & Leone d'Oro
+      \\
+      11 & Oscar
+    \end{tabular}
+    \\
+    {\color{gray}$\pmb\downarrow$}
+    \\
+    \begin{tabular}{cc}
+      \multicolumn{2}{c}{\em Table: Result}
+      \\
+      \hline
+      \textbf{name} & \textbf{prize}
+      \\
+      \hline
+      F.~F.~Coppola & Oscar
+      \\
+      T.~Kitano & Leone d'Oro
+      \\
+      Ed Wood & \texttt{NULL}
+    \end{tabular}
+
+    \+
+    \begin{minipage}{32ex}
+      \begin{python}
+directors.join(prizes,
+  on=(directors.prizeId == prizes.id),
+  how='left_outer')
+    \end{python}
+  \end{minipage}
+  \end{center}
+\end{frame}
+
+
+\begin{frame}
+  \begin{exercise*}[4.A]
+    Re-use and adapt code from Exercise 3.B to construct DataFrames of
+    word counts of files \texttt{hdfs:///shakespeare.txt.gz} and
+    \texttt{hdfs:///dickens.txt.gz}.
+
+    Then compute the top-5 words that are in Shakespeare's works and do
+    not appear in Dickens, and vice-versa.
+  \end{exercise*}
+\end{frame}
+
+
+\part{SQL queries}
+\begin{frame}[fragile]
+  \frametitle{SQL queries}
+  It is possible to run SQL queries on \texttt{DataFrame} objects.
+
+  \+
+  \begin{describe}{df.createTempView(\emph{name})}
+    Allow queries on {\ttfamily\em df} as table {\ttfamily\em name}.  Lifetime of the
+    table is tied to \texttt{SQLContext}.
+  \end{describe}
+
+  \+
+  \begin{describe}{spark.sql(\emph{query})}
+    Run {\ttfamily\em query} and return result as a new \texttt{DataFrame}.
+    All registered DFs can be queried.
+    \begin{python}
+df.createTempView('data')
+df2 = spark.sql('SELECT * FROM data;')
+    \end{python}
+  \end{describe}
+\end{frame}
+
+
+\end{document}
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:
